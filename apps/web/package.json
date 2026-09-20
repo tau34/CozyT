@@ -9,6 +9,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "build:production": "tsc -p tsconfig.json --noEmit && vite build --mode production",
     "preview": "vite preview",
+    "start:render": "vite preview --host 0.0.0.0 --port $PORT",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
