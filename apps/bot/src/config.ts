@@ -1,4 +1,5 @@
 import { config as loadDotenv } from 'dotenv';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 export type RuntimeEnvironment = 'development' | 'test' | 'production';
@@ -20,9 +21,10 @@ function getEnvironment(): RuntimeEnvironment {
 
 export function getBotConfig(): BotConfig {
   const environment = getEnvironment();
-  loadDotenv({ path: path.resolve(process.cwd(), `.env.${environment}.local`) });
-  loadDotenv({ path: path.resolve(process.cwd(), `.env.${environment}`) });
-  loadDotenv({ path: path.resolve(process.cwd(), '.env') });
+  const workspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+  loadDotenv({ path: path.join(workspaceRoot, `.env.${environment}.local`) });
+  loadDotenv({ path: path.join(workspaceRoot, `.env.${environment}`) });
+  loadDotenv({ path: path.join(workspaceRoot, '.env') });
 
   const token = process.env.DISCORD_TOKEN;
   const clientId = process.env.DISCORD_CLIENT_ID;

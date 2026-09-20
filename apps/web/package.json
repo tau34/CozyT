@@ -8,6 +8,7 @@
     "dev:test": "vite --mode test",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "build:production": "tsc -p tsconfig.json --noEmit && vite build --mode production",
+    "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
