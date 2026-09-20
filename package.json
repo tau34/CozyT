@@ -6,9 +6,17 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev:web": "npm run dev --workspace @cozyt/web",
+    "dev:web:test": "npm run dev:test --workspace @cozyt/web",
     "dev:bot": "npm run dev --workspace @cozyt/bot",
+    "dev:bot:test": "npm run dev:test --workspace @cozyt/bot",
     "build": "npm run build --workspaces --if-present",
+    "build:production": "npm run build:production --workspace @cozyt/web && npm run build --workspace @cozyt/bot",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspace @cozyt/core",
     "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "cross-env": "latest"
   },
   "engines": {
     "node": ">=20"

@@ -3,8 +3,8 @@
   "compilerOptions": {
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "outDir": "dist",
-    "noEmit": true
+    "rootDir": "src",
+    "outDir": "dist"
   },
   "include": ["src"]
 }

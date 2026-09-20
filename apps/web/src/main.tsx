@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createRoot } from 'react-dom/client';
 import { ArrowUpRight, Bell, ChevronDown, Gamepad2, Menu, Search, Sparkles, Users } from 'lucide-react';
 import { createGameCatalog, gameCategories, type GameCategory } from '@cozyt/core';
 import './styles.css';
@@ -33,28 +34,19 @@ function App() {
       <main id="top">
         <section className="hero-section" id="discover">
           <div className="hero-copy">
-            <p className="eyebrow"><span className="eyebrow-dot" /> YOUR LITTLE PLAYGROUND</p>
-            <h1>Make room<br /><em>for play.</em></h1>
+            <p className="eyebrow"><span className="eyebrow-dot" /> COZY TADOKORO YAJU PLAYGROUND</p>
+            <h1>Cozy<em>T</em> Portal </h1>
             <p className="hero-description">友だちと集まって、まだ知らない遊びに出会う。CozyTは、気軽なゲームの時間をつくる場所です。</p>
             <div className="hero-actions">
               <a className="primary-button" href="#games">ゲームを探す <ArrowUpRight size={17} /></a>
               <button className="text-button"><Gamepad2 size={17} /> ルームを作る</button>
             </div>
           </div>
-          <div className="hero-art" aria-label="CozyTのプレイグラウンド">
-            <div className="sun-disc" />
-            <div className="orbit orbit-one" />
-            <div className="orbit orbit-two" />
-            <div className="art-card card-yellow"><span>01</span><strong>Play<br />together</strong></div>
-            <div className="art-card card-coral"><span>02</span><strong>Find your<br />favorite</strong></div>
-            <div className="art-card card-green"><span>03</span><strong>Stay<br />awhile</strong></div>
-            <div className="art-sticker">✳</div>
-          </div>
         </section>
 
         <section className="section-block" id="games">
           <div className="section-heading">
-            <div><p className="eyebrow">THE COLLECTION</p><h2>今日の気分で選ぶ</h2></div>
+            <div><p className="eyebrow">THE COLLECTION</p><h2>ゲームを選ぶ</h2></div>
             <button className="browse-button">すべて見る <ArrowUpRight size={16} /></button>
           </div>
           <div className="filter-row" role="group" aria-label="ゲームカテゴリ">
@@ -80,3 +72,11 @@ function App() {
 }
 
 export default App;
+
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error('The application root element was not found.');
+}
+
+createRoot(rootElement).render(<App />);

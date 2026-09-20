@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev:test": "vite --mode test",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "build:production": "tsc -p tsconfig.json --noEmit && vite build --mode production",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

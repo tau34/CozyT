@@ -1,4 +1,4 @@
-export type GameCategory = 'party' | 'strategy' | 'card' | 'casino' | 'arcade';
+export type GameCategory = 'worship' | 'strategy' | 'card' | 'casino' | 'arcade';
 export type GameAvailability = 'available' | 'coming-soon';
 
 export interface GameDefinition {
@@ -19,10 +19,10 @@ export interface GameCatalog {
 
 const gameDefinitions: GameDefinition[] = [
   {
-    id: 'cozy-room',
-    name: 'Cozy Room',
-    description: 'みんなが集まる、CozyTのロビー。ここから遊びたいゲームへ。',
-    category: 'party',
+    id: 'cozy-chapel',
+    name: 'Cozy Chapel',
+    description: 'みんなが集まる、CozyTの礼拝所です。ここから、天にまします我らの神を礼拝することができます。',
+    category: 'worship',
     availability: 'available',
     players: { min: 1, max: 12 },
     accent: '#f2a65a',
@@ -85,8 +85,10 @@ export function createGameCatalog(): GameCatalog {
   };
 }
 
+// { id: 'party', label: 'パーティー' } は一旦保留。
+// partyを追加するときは、GameCategoryとgameDefinitionsも変える必要があることに注意。
 export const gameCategories: Array<{ id: GameCategory; label: string }> = [
-  { id: 'party', label: 'パーティー' },
+  { id: 'worship', label: '礼拝' },
   { id: 'strategy', label: 'ストラテジー' },
   { id: 'card', label: 'カード' },
   { id: 'arcade', label: 'アーケード' },
