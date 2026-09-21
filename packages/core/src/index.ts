@@ -21,7 +21,7 @@ const gameDefinitions: GameDefinition[] = [
   {
     id: 'cozy-chapel',
     name: 'Cozy Chapel',
-    description: 'みんなが集まる、CozyTの礼拝所です。ここから、天にまします我らの神を礼拝することができます。',
+    description: '淫夢厨が集まる、CozyTの礼拝所です。ここから、我らの神を礼拝することができます。',
     category: 'worship',
     availability: 'available',
     players: { min: 1, max: 12 },
