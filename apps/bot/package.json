@@ -12,7 +12,6 @@
   },
   "dependencies": {
     "@cozyt/core": "*",
-    "discord.js": "latest",
     "dotenv": "latest",
     "tsx": "latest",
     "typescript": "latest"

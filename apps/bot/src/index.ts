@@ -1,104 +1,175 @@
-import { Client, Events, GatewayIntentBits, REST, Routes, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { createGameCatalog } from '@cozyt/core';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { getBotConfig } from './config.js';
 
 const botConfig = getBotConfig();
-const { token, clientId, guildId } = botConfig;
-const catalog = createGameCatalog();
+const maxBodySize = 16_384;
+const webDistDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../web/dist');
 
-const gamesCommand = new SlashCommandBuilder()
-  .setName('games')
-  .setDescription('CozyTで遊べるゲームを表示します');
+interface WebhookMessage {
+  content: string;
+  username?: string;
+}
 
-const debugMessageCommand = new SlashCommandBuilder()
-  .setName('debug-message')
-  .setDescription('テストGuildに仮のメッセージを送信します')
-  .addStringOption((option) => option
-    .setName('message')
-    .setDescription('送信するメッセージ')
-    .setRequired(false));
+function sendJson(response: ServerResponse, statusCode: number, body: Record<string, unknown>) {
+  response.writeHead(statusCode, { 'content-type': 'application/json; charset=utf-8' });
+  response.end(JSON.stringify(body));
+}
 
-const debugStatusCommand = new SlashCommandBuilder()
-  .setName('debug-status')
-  .setDescription('Botのテスト環境情報を表示します');
+async function readJson(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  let size = 0;
 
-const rest = new REST({ version: '10' }).setToken(token);
-const commandRoute = guildId ? Routes.applicationGuildCommands(clientId, guildId) : Routes.applicationCommands(clientId);
+  for await (const chunk of request) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    size += buffer.length;
+    if (size > maxBodySize) throw new Error('Request body is too large.');
+    chunks.push(buffer);
+  }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
 
-client.once(Events.ClientReady, (readyClient) => {
-  console.log(`CozyT bot is ready as ${readyClient.user.tag} (${botConfig.environment})`);
+function isWebhookMessage(value: unknown): value is WebhookMessage {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Partial<WebhookMessage>;
+  return typeof message.content === 'string' && message.content.trim().length > 0 && message.content.length <= 2_000;
+}
+
+async function handleWebhook(request: IncomingMessage, response: ServerResponse) {
+  const authorization = request.headers.authorization;
+  if (authorization !== `Bearer ${botConfig.webhookSecret}`) {
+    sendJson(response, 401, { error: 'Unauthorized' });
+    return;
+  }
+
+  let payload: unknown;
+  try {
+    payload = await readJson(request);
+  } catch {
+    sendJson(response, 400, { error: 'Request body must be valid JSON and smaller than 16KB.' });
+    return;
+  }
+
+  if (!isWebhookMessage(payload)) {
+    sendJson(response, 400, { error: 'content is required and must be 2,000 characters or fewer.' });
+    return;
+  }
+
+  const discordResponse = await fetch(botConfig.webhookUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      content: payload.content.trim(),
+      ...(payload.username ? { username: payload.username.slice(0, 80) } : {})
+    })
+  });
+
+  if (!discordResponse.ok) {
+    console.error(`Discord webhook returned HTTP ${discordResponse.status}.`);
+    sendJson(response, 502, { error: 'Discord webhook delivery failed.' });
+    return;
+  }
+
+  sendJson(response, 202, { delivered: true });
+}
+
+async function handleTestMessage(request: IncomingMessage, response: ServerResponse) {
+  if (botConfig.environment !== 'test') {
+    sendJson(response, 404, { error: 'Not found' });
+    return;
+  }
+
+  let payload: unknown;
+  try {
+    payload = await readJson(request);
+  } catch {
+    sendJson(response, 400, { error: 'Request body must be valid JSON and smaller than 16KB.' });
+    return;
+  }
+
+  if (!isWebhookMessage(payload)) {
+    sendJson(response, 400, { error: 'content is required and must be 2,000 characters or fewer.' });
+    return;
+  }
+
+  await sendDiscordMessage({
+    content: `🧪 **CozyT test message**\n${payload.content.trim()}`,
+    ...(payload.username ? { username: payload.username.slice(0, 80) } : {})
+  });
+  sendJson(response, 202, { delivered: true, test: true });
+}
+
+async function sendDiscordMessage(message: WebhookMessage) {
+  const discordResponse = await fetch(botConfig.webhookUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      content: message.content.trim(),
+      ...(message.username ? { username: message.username.slice(0, 80) } : {})
+    })
+  });
+
+  if (!discordResponse.ok) {
+    throw new Error(`Discord webhook returned HTTP ${discordResponse.status}.`);
+  }
+}
+
+async function serveWebPage(request: IncomingMessage, response: ServerResponse) {
+  if (request.method !== 'GET') return false;
+  const requestedPath = request.url === '/' ? '/index.html' : request.url?.startsWith('/') ? request.url : '/index.html';
+  const filePath = path.resolve(webDistDirectory, `.${requestedPath}`);
+  if (!filePath.startsWith(webDistDirectory)) {
+    sendJson(response, 400, { error: 'Invalid path' });
+    return true;
+  }
+
+  try {
+    const content = await readFile(filePath);
+    const contentType = filePath.endsWith('.html') ? 'text/html; charset=utf-8' : 'application/octet-stream';
+    response.writeHead(200, { 'content-type': contentType });
+    response.end(content);
+  } catch {
+    const index = await readFile(path.join(webDistDirectory, 'index.html'));
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end(index);
+  }
+  return true;
+}
+
+const server = createServer(async (request, response) => {
+  try {
+    if (request.method === 'GET' && request.url === '/health') {
+      sendJson(response, 200, { status: 'ok', environment: botConfig.environment });
+      return;
+    }
+
+    if (request.method === 'POST' && request.url === '/api/discord/webhook') {
+      await handleWebhook(request, response);
+      return;
+    }
+
+    if (request.method === 'POST' && request.url === '/api/discord/test-message') {
+      const authorization = request.headers.authorization;
+      if (authorization !== `Bearer ${botConfig.webhookSecret}`) {
+        sendJson(response, 401, { error: 'Unauthorized' });
+        return;
+      }
+      await handleTestMessage(request, response);
+      return;
+    }
+
+    if (await serveWebPage(request, response)) return;
+
+    sendJson(response, 404, { error: 'Not found' });
+  } catch (error: unknown) {
+    console.error('Webhook service request failed', error);
+    sendJson(response, 500, { error: 'Internal server error.' });
+  }
 });
 
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  if (interaction.commandName === 'debug-message') {
-    await handleDebugMessage(interaction);
-    return;
-  }
-
-  if (interaction.commandName === 'debug-status') {
-    await handleDebugStatus(interaction);
-    return;
-  }
-
-  if (interaction.commandName !== 'games') return;
-
-  const games = catalog.list();
-  const lines = games.map((game) => {
-    const status = game.availability === 'available' ? 'プレイ可能' : '準備中';
-    return `${game.icon} **${game.name}** - ${status}\n${game.description}`;
-  });
-
-  await interaction.reply({
-    content: `**CozyT Game Portal**\n\n${lines.join('\n\n')}\n\nWebポータル: ${botConfig.webUrl}`,
-    ephemeral: true
-  });
-});
-
-async function handleDebugMessage(interaction: ChatInputCommandInteraction) {
-  if (botConfig.environment !== 'test') {
-    await interaction.reply({ content: 'このコマンドはテスト環境でのみ利用できます。', ephemeral: true });
-    return;
-  }
-
-  const message = interaction.options.getString('message')?.trim() || 'CozyT debug message';
-  if (!interaction.channel || !interaction.channel.isSendable()) {
-    await interaction.reply({ content: 'このチャンネルにはメッセージを送信できません。', ephemeral: true });
-    return;
-  }
-
-  const sentMessage = await interaction.channel.send(`🧪 **CozyT test message**\n${message}`);
-  await interaction.reply({
-    content: `テストメッセージを送信しました: ${sentMessage.url}`,
-    ephemeral: true
-  });
-}
-
-async function handleDebugStatus(interaction: ChatInputCommandInteraction) {
-  if (botConfig.environment !== 'test') {
-    await interaction.reply({ content: 'このコマンドはテスト環境でのみ利用できます。', ephemeral: true });
-    return;
-  }
-
-  await interaction.reply({
-    content: `環境: \`test\`\n登録Guild: \`${botConfig.debugGuildId}\`\nWeb URL: ${botConfig.webUrl}`,
-    ephemeral: true
-  });
-}
-
-async function start() {
-  const commands = [gamesCommand.toJSON()];
-  if (botConfig.environment === 'test') {
-    commands.push(debugMessageCommand.toJSON(), debugStatusCommand.toJSON());
-  }
-  await rest.put(commandRoute, { body: commands });
-  await client.login(token);
-}
-
-start().catch((error: unknown) => {
-  console.error('Failed to start CozyT bot', error);
-  process.exit(1);
+server.listen(botConfig.port, '0.0.0.0', () => {
+  console.log(`CozyT Discord webhook service is listening on port ${botConfig.port} (${botConfig.environment}).`);
 });

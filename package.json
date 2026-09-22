@@ -7,8 +7,8 @@
   "scripts": {
     "dev:web": "npm run dev --workspace @cozyt/web",
     "dev:web:test": "npm run dev:test --workspace @cozyt/web",
-    "dev:bot": "npm run dev --workspace @cozyt/bot",
-    "dev:bot:test": "npm run dev:test --workspace @cozyt/bot",
+    "dev:webhook": "npm run dev --workspace @cozyt/bot",
+    "dev:webhook:test": "npm run dev:test --workspace @cozyt/bot",
     "build": "npm run build --workspaces --if-present",
     "build:production": "npm run build:production --workspace @cozyt/web && npm run build --workspace @cozyt/bot",
     "test": "npm run test --workspaces --if-present",
